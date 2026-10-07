@@ -33,6 +33,9 @@ builder.Services.AddControllersWithViews(options =>
     options.ModelBinderProviders.Insert(0, new InvariantDecimalModelBinderProvider());
 });
 
+builder.Services.AddScoped<Firmeza.Web.Services.ExcelImportService>();
+builder.Services.AddScoped<Firmeza.Web.Services.ReceiptPdfService>();
+
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
@@ -45,6 +48,7 @@ if (app.Configuration.GetValue("Https:Enabled", true))
 {
     app.UseHttpsRedirection();
 }
+app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();

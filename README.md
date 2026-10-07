@@ -102,7 +102,30 @@ dotnet run
 
 El objetivo de la siguiente fase es sustituirlo por un cliente independiente que consuma la API.
 
+## Importación y Exportación Masiva (Semana 2)
+
+El sistema incorpora herramientas avanzadas para la administración de inventario y soporte documental:
+
+- **Carga Masiva de Datos Desnormalizados (Excel con EPPlus):**
+  - Ubicación: `/Import` (accesible desde el menú lateral como *Carga Masiva*).
+  - Admite archivos `.xlsx` con datos no normalizados (por ejemplo, filas mixtas de clientes y productos).
+  - Detección dinámica de columnas por encabezados flexibles (documento, cliente, email, SKU, producto, categoría, precio, stock).
+  - Normalización en memoria para optimizar rendimiento y mitigar problemas de consultas N+1.
+  - Validación de campos obligatorios, valores numéricos positivos y stock no negativo.
+  - Inserción y actualización inteligente (Upsert) con log detallado de inconsistencias y resumen interactivo de registros procesados.
+
+- **Exportación de Catálogo, Clientes y Ventas:**
+  - Exportación en formato Microsoft Excel OpenXML (`.xlsx`) mediante EPPlus.
+  - Exportación en formato PDF con diseño institucional mediante QuestPDF.
+  - Botones de exportación rápida disponibles en los encabezados de cada vista (`/Products`, `/Customers`, `/Sales`).
+
+- **Generación Automática de Comprobantes de Venta (PDF):**
+  - Generación de recibos PDF al consultar o registrar ventas.
+  - Incluye datos del cliente, número de comprobante, fecha, detalle de productos, subtotal, desglose de IVA (19%) y total a pagar.
+  - Almacenamiento automático en la carpeta física `wwwroot/recibos/recibo_{numeroVenta}.pdf` para consulta y descarga directa.
+
 ## Documentacion tecnica
 
 - `docs/capas-y-validaciones.md`: responsabilidades y flujo de validacion.
-- `docs/diagrams.md`: modelo entidad-relacion.
+- `docs/diagrams.md`: modelo entidad-relacion y diagrama de clases del sistema.
+

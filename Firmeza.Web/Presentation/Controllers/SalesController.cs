@@ -1,7 +1,11 @@
+using System;
+using System.Linq;
+using System.Threading.Tasks;
 using Firmeza.Domain.Identity;
 using Firmeza.Infrastructure.Identity;
 using Firmeza.Infrastructure.Persistence;
 using Firmeza.Web.Presentation.ViewModels.Sales;
+using Firmeza.Web.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -12,10 +16,12 @@ namespace Firmeza.Web.Presentation.Controllers;
 public class SalesController : Controller
 {
     private readonly ApplicationDbContext _db;
+    private readonly ReceiptPdfService _receiptService;
 
-    public SalesController(ApplicationDbContext db)
+    public SalesController(ApplicationDbContext db, ReceiptPdfService receiptService)
     {
         _db = db;
+        _receiptService = receiptService;
     }
 
     public async Task<IActionResult> Index(string? q)
@@ -41,6 +47,22 @@ public class SalesController : Controller
         return View(sales);
     }
 
+    [HttpGet]
+    public async Task<IActionResult> ExportExcel()
+    {
+        var sales = await _db.Sales.AsNoTracking().Include(s => s.Customer).OrderByDescending(s => s.SaleDate).ToListAsync();
+        var bytes = _receiptService.ExportSalesToExcel(sales);
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"Ventas_{DateTime.Now:yyyyMMdd_HHmm}.xlsx");
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> ExportPdf()
+    {
+        var sales = await _db.Sales.AsNoTracking().Include(s => s.Customer).OrderByDescending(s => s.SaleDate).ToListAsync();
+        var bytes = _receiptService.ExportSalesToPdf(sales);
+        return File(bytes, "application/pdf", $"Ventas_{DateTime.Now:yyyyMMdd_HHmm}.pdf");
+    }
+
     public async Task<IActionResult> Details(Guid id)
     {
         var sale = await _db.Sales
@@ -54,6 +76,10 @@ public class SalesController : Controller
         {
             return NotFound();
         }
+
+        // Generar comprobante físico en wwwroot/recibos y obtener URL
+        var receiptUrl = _receiptService.GenerateAndSaveSaleReceipt(sale);
+        ViewData["ReceiptUrl"] = receiptUrl;
 
         var model = new SaleDetailsViewModel
         {
@@ -75,5 +101,24 @@ public class SalesController : Controller
         };
 
         return View(model);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> DownloadReceipt(Guid id)
+    {
+        var sale = await _db.Sales
+            .AsNoTracking()
+            .Include(item => item.Customer)
+            .Include(item => item.Details)
+            .ThenInclude(detail => detail.Product)
+            .FirstOrDefaultAsync(item => item.Id == id);
+
+        if (sale is null)
+        {
+            return NotFound();
+        }
+
+        var pdfBytes = _receiptService.GenerateSaleReceiptBytes(sale);
+        return File(pdfBytes, "application/pdf", $"recibo_{sale.SaleNumber}.pdf");
     }
 }

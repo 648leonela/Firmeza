@@ -1,6 +1,8 @@
+using AutoMapper;
 using Firmeza.Application.Abstractions;
 using Firmeza.Application.Common;
 using Firmeza.Application.Dtos.Sales;
+using Firmeza.Application.Mappings;
 using Firmeza.Domain.Entities;
 using Firmeza.Domain.Enums;
 using Firmeza.Domain.Errors;
@@ -16,6 +18,8 @@ public sealed class SaleService : ISaleService
     private readonly ICurrentUserService _currentUser;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IClock _clock;
+    private readonly IMapper _mapper;
+    private readonly IEmailService? _emailService;
 
     public SaleService(
         ISaleRepository sales,
@@ -23,7 +27,9 @@ public sealed class SaleService : ISaleService
         ICustomerRepository customers,
         ICurrentUserService currentUser,
         IUnitOfWork unitOfWork,
-        IClock clock)
+        IClock clock,
+        IMapper? mapper = null,
+        IEmailService? emailService = null)
     {
         _clock = clock;
         _sales = sales;
@@ -31,16 +37,19 @@ public sealed class SaleService : ISaleService
         _customers = customers;
         _currentUser = currentUser;
         _unitOfWork = unitOfWork;
+        _mapper = mapper ?? new MapperConfiguration(cfg => cfg.AddProfile<SaleMappingProfile>()).CreateMapper();
+        _emailService = emailService;
     }
 
     public async Task<Result<PagedResponse<SaleSummaryResponse>>> ListAsync(SaleQuery query, CancellationToken cancellationToken = default)
     {
         var page = new PageRequest { Page = query.Page, PageSize = query.PageSize };
         var result = await _sales.ListAsync(new SaleFilter(query.Q?.Trim(), query.Status), page, cancellationToken);
+        var items = _mapper.Map<List<SaleSummaryResponse>>(result.Items);
 
         return Result.Success(new PagedResponse<SaleSummaryResponse>
         {
-            Items = result.Items.Select(ToSummary).ToList(),
+            Items = items,
             Page = page.Page,
             PageSize = page.Take,
             TotalCount = result.TotalCount
@@ -53,7 +62,7 @@ public sealed class SaleService : ISaleService
 
         return sale is null
             ? Result.Failure<SaleResponse>(Error.EntityNotFound("Venta", id))
-            : Result.Success(ToResponse(sale));
+            : Result.Success(_mapper.Map<SaleResponse>(sale));
     }
 
     public async Task<Result<SaleResponse>> CreateAsync(SaleRequest request, CancellationToken cancellationToken = default)
@@ -146,6 +155,18 @@ public sealed class SaleService : ISaleService
             return Result.Failure<SaleResponse>(Error.Conflict(exception.Message));
         }
 
+        if (!string.IsNullOrWhiteSpace(customer.Email) && _emailService is not null)
+        {
+            try
+            {
+                await _emailService.SendSaleConfirmationEmailAsync(customer.Email, customer.FullName, sale.SaleNumber, sale.Total, cancellationToken);
+            }
+            catch
+            {
+                // Fallo de correo no interrumpe la respuesta exitosa de la venta
+            }
+        }
+
         return Result.Success(new SaleResponse(
             sale.Id,
             sale.SaleNumber,
@@ -178,35 +199,4 @@ public sealed class SaleService : ISaleService
 
         return merged;
     }
-
-    private static SaleSummaryResponse ToSummary(Sale sale) => new(
-        sale.Id,
-        sale.SaleNumber,
-        sale.CustomerId,
-        sale.Customer?.FullName ?? string.Empty,
-        sale.SaleDate,
-        sale.Status,
-        sale.Total,
-        sale.Details.Count);
-
-    private static SaleResponse ToResponse(Sale sale) => new(
-        sale.Id,
-        sale.SaleNumber,
-        sale.CustomerId,
-        sale.Customer?.FullName ?? string.Empty,
-        sale.Customer?.Document ?? string.Empty,
-        sale.SaleDate,
-        sale.Status,
-        sale.Total,
-        sale.CreatedByUserId,
-        sale.Details
-            .Select(detail => new SaleLineResponse(
-                detail.Id,
-                detail.ProductId,
-                detail.Product?.Sku ?? string.Empty,
-                detail.Product?.Name ?? string.Empty,
-                detail.Quantity,
-                detail.UnitPrice,
-                detail.Subtotal))
-            .ToList());
 }

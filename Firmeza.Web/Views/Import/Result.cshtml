@@ -1,0 +1,74 @@
+@model Firmeza.Web.Presentation.ViewModels.ImportResultViewModel
+@{
+    ViewData["Title"] = "Resultado de Importación";
+}
+
+<div class="mx-auto max-w-4xl space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <p class="text-xs font-black uppercase tracking-widest text-amber-600">Procesamiento Completado</p>
+            <h1 class="text-3xl font-black text-slate-900">Resumen de Importación</h1>
+        </div>
+        <a asp-action="Index" class="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 transition hover:bg-slate-50">
+            ← Nueva Importación
+        </a>
+    </div>
+
+    <!-- Cards de métricas -->
+    <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <span class="block text-3xl font-black text-slate-900">@Model.TotalFilas</span>
+            <span class="mt-1 block text-xs font-bold text-slate-400">Filas Evaluadas</span>
+        </div>
+        <div class="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-5 shadow-sm">
+            <span class="block text-3xl font-black text-emerald-600">@(Model.ClientesCreados + Model.ProductosCreados)</span>
+            <span class="mt-1 block text-xs font-bold text-emerald-700">Registros Creados</span>
+            <span class="mt-0.5 block text-[10px] text-emerald-600">(@Model.ClientesCreados clientes, @Model.ProductosCreados productos)</span>
+        </div>
+        <div class="rounded-2xl border border-blue-200 bg-blue-50/50 p-5 shadow-sm">
+            <span class="block text-3xl font-black text-blue-600">@(Model.ClientesActualizados + Model.ProductosActualizados)</span>
+            <span class="mt-1 block text-xs font-bold text-blue-700">Registros Actualizados</span>
+            <span class="mt-0.5 block text-[10px] text-blue-600">(@Model.ClientesActualizados clientes, @Model.ProductosActualizados productos)</span>
+        </div>
+        <div class="rounded-2xl border @(Model.TieneErrores ? "border-rose-200 bg-rose-50/60" : "border-slate-200 bg-white") p-5 shadow-sm">
+            <span class="block text-3xl font-black @(Model.TieneErrores ? "text-rose-600" : "text-slate-400")">@Model.Errores.Count</span>
+            <span class="mt-1 block text-xs font-bold @(Model.TieneErrores ? "text-rose-700" : "text-slate-400")">Inconsistencias</span>
+            <span class="mt-0.5 block text-[10px] text-slate-500">Filas omitidas o con error</span>
+        </div>
+    </div>
+
+    <!-- Log de Errores e Inconsistencias -->
+    @if (Model.TieneErrores)
+    {
+        <div class="rounded-3xl border border-rose-200 bg-white p-6 shadow-sm">
+            <div class="flex items-center gap-2 text-rose-700">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                </svg>
+                <h2 class="text-sm font-black uppercase tracking-wider">Log de Inconsistencias Detectadas</h2>
+            </div>
+            <p class="mt-1 text-xs text-slate-500">Las siguientes filas presentaron errores de validación de formato o datos faltantes y fueron omitidas:</p>
+            <div class="mt-4 max-h-72 overflow-y-auto rounded-2xl bg-slate-50 p-4 font-mono text-xs">
+                <ul class="space-y-1.5 divide-y divide-slate-200/60">
+                    @foreach (var error in Model.Errores)
+                    {
+                        <li class="pt-1.5 text-rose-700 first:pt-0">@error</li>
+                    }
+                </ul>
+            </div>
+        </div>
+    }
+
+    <!-- Botones de Acción -->
+    <div class="flex flex-wrap items-center gap-4 pt-2">
+        <a asp-action="Index" class="rounded-xl bg-slate-950 px-5 py-3 text-sm font-bold text-white transition hover:bg-slate-800">
+            Importar otro archivo
+        </a>
+        <a asp-controller="Products" asp-action="Index" class="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50">
+            Ver Productos
+        </a>
+        <a asp-controller="Customers" asp-action="Index" class="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50">
+            Ver Clientes
+        </a>
+    </div>
+</div>

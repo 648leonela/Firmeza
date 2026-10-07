@@ -13,6 +13,7 @@ public sealed class AuthService : IAuthService
     private readonly ICurrentUserService _currentUser;
     private readonly IClock _clock;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IEmailService? _emailService;
 
     public AuthService(
         IUserService users,
@@ -20,7 +21,8 @@ public sealed class AuthService : IAuthService
         IRefreshTokenRepository refreshTokens,
         ICurrentUserService currentUser,
         IClock clock,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IEmailService? emailService = null)
     {
         _users = users;
         _tokens = tokens;
@@ -28,6 +30,7 @@ public sealed class AuthService : IAuthService
         _currentUser = currentUser;
         _clock = clock;
         _unitOfWork = unitOfWork;
+        _emailService = emailService;
     }
 
     public async Task<Result<TokenResponse>> LoginAsync(LoginRequest request, CancellationToken cancellationToken = default)
@@ -67,6 +70,18 @@ public sealed class AuthService : IAuthService
         if (!created.Succeeded || created.Value is null)
         {
             return Result.Failure<UserResponse>(Error.Validation(MapIdentityErrors(created.Errors)));
+        }
+
+        if (_emailService is not null)
+        {
+            try
+            {
+                await _emailService.SendWelcomeEmailAsync(registration.Email, registration.FullName, cancellationToken);
+            }
+            catch
+            {
+                // Fallo de correo no bloquea el registro exitoso
+            }
         }
 
         return Result.Success(new UserResponse(

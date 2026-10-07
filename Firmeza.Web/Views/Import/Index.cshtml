@@ -1,0 +1,57 @@
+@{
+    ViewData["Title"] = "Importación Masiva";
+}
+
+<div class="mx-auto max-w-3xl">
+    <div class="flex items-center gap-3">
+        <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-100 text-amber-600">
+            <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+            </svg>
+        </span>
+        <div>
+            <p class="text-xs font-black uppercase tracking-widest text-amber-600">Herramientas Masivas</p>
+            <h1 class="text-3xl font-black text-slate-900">Importación de Datos Excel</h1>
+        </div>
+    </div>
+
+    <div class="mt-8 rounded-3xl border border-slate-200/80 bg-white p-8 shadow-sm">
+        <div class="rounded-2xl border border-amber-200 bg-amber-50/60 p-5">
+            <h2 class="text-sm font-bold text-amber-900">Carga de archivos desnormalizados (.xlsx)</h2>
+            <p class="mt-1 text-xs text-amber-800 leading-relaxed">
+                El sistema lee archivos con información mixta o no normalizada. Detecta de forma dinámica las columnas correspondientes a 
+                <strong>Clientes</strong> (Documento, Nombre, Email, Teléfono) y <strong>Productos</strong> (SKU, Nombre, Categoría, Precio, Stock), 
+                normalizando en memoria e insertando o actualizando los registros según corresponda.
+            </p>
+        </div>
+
+        <form asp-action="Index" method="post" enctype="multipart/form-data" class="mt-8 space-y-6">
+            @Html.AntiForgeryToken()
+
+            @if (!ViewData.ModelState.IsValid)
+            {
+                <div asp-validation-summary="All" class="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-700"></div>
+            }
+
+            <div class="rounded-2xl border-2 border-dashed border-slate-300 p-8 text-center transition hover:border-amber-400 hover:bg-amber-50/20">
+                <svg class="mx-auto h-12 w-12 text-slate-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                </svg>
+                <div class="mt-4">
+                    <label for="file" class="cursor-pointer font-bold text-amber-600 hover:text-amber-500">
+                        Selecciona un archivo Excel
+                    </label>
+                    <input id="file" name="file" type="file" accept=".xlsx" required class="mt-2 block w-full text-xs text-slate-500 file:mr-4 file:rounded-xl file:border-0 file:bg-amber-100 file:px-4 file:py-2.5 file:text-xs file:font-black file:text-amber-800 hover:file:bg-amber-200" />
+                </div>
+                <p class="mt-2 text-xs text-slate-400">Archivos compatibles: formato Microsoft Excel OpenXML (.xlsx)</p>
+            </div>
+
+            <div class="flex items-center justify-end gap-3 pt-4">
+                <a asp-controller="Dashboard" asp-action="Index" class="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50">Cancelar</a>
+                <button type="submit" class="rounded-xl bg-amber-400 px-6 py-3 text-sm font-black text-slate-950 shadow-lg shadow-amber-100 transition hover:bg-amber-300">
+                    Procesar y Normalizar Datos
+                </button>
+            </div>
+        </form>
+    </div>
+</div>

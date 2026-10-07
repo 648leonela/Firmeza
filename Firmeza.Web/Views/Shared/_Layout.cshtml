@@ -26,6 +26,10 @@
                     <a asp-controller="Products" asp-action="Index" class="block rounded-xl px-4 py-3 text-sm font-semibold transition hover:bg-white/70 hover:text-slate-950">Productos</a>
                     <a asp-controller="Customers" asp-action="Index" class="block rounded-xl px-4 py-3 text-sm font-semibold transition hover:bg-white/70 hover:text-slate-950">Clientes</a>
                     <a asp-controller="Sales" asp-action="Index" class="block rounded-xl px-4 py-3 text-sm font-semibold transition hover:bg-white/70 hover:text-slate-950">Ventas</a>
+                    <a asp-controller="Import" asp-action="Index" class="flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-amber-700 transition hover:bg-white/70 hover:text-amber-900">
+                        <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" /></svg>
+                        <span>Carga Masiva</span>
+                    </a>
                 </nav>
                 <div class="mt-auto border-t border-white/60 pt-5">
                     <p class="truncate px-4 text-xs text-slate-500">@User.Identity?.Name</p>

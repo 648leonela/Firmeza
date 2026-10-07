@@ -6,6 +6,7 @@ using Firmeza.Web.Presentation.ViewModels.Products;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Firmeza.Web.Services;
 
 namespace Firmeza.Web.Presentation.Controllers;
 
@@ -13,10 +14,12 @@ namespace Firmeza.Web.Presentation.Controllers;
 public class ProductsController : Controller
 {
     private readonly ApplicationDbContext _db;
+    private readonly ReceiptPdfService _pdfService;
 
-    public ProductsController(ApplicationDbContext db)
+    public ProductsController(ApplicationDbContext db, ReceiptPdfService pdfService)
     {
         _db = db;
+        _pdfService = pdfService;
     }
 
     public async Task<IActionResult> Index(string? q, bool soloActivos = false)
@@ -48,6 +51,22 @@ public class ProductsController : Controller
         }).ToListAsync();
 
         return View(products);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> ExportExcel()
+    {
+        var products = await _db.Products.AsNoTracking().OrderBy(p => p.Name).ToListAsync();
+        var bytes = _pdfService.ExportProductsToExcel(products);
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"Productos_{DateTime.Now:yyyyMMdd_HHmm}.xlsx");
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> ExportPdf()
+    {
+        var products = await _db.Products.AsNoTracking().OrderBy(p => p.Name).ToListAsync();
+        var bytes = _pdfService.ExportProductsToPdf(products);
+        return File(bytes, "application/pdf", $"Productos_{DateTime.Now:yyyyMMdd_HHmm}.pdf");
     }
 
     [HttpGet]

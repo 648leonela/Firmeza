@@ -1,6 +1,8 @@
+using AutoMapper;
 using Firmeza.Application.Abstractions;
 using Firmeza.Application.Common;
 using Firmeza.Application.Dtos.Products;
+using Firmeza.Application.Mappings;
 using Firmeza.Domain.Entities;
 
 namespace Firmeza.Application.Services.Products;
@@ -10,19 +12,25 @@ public sealed class ProductService : IProductService
     private readonly IProductRepository _products;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IClock _clock;
+    private readonly IMapper _mapper;
 
-    public ProductService(IProductRepository products, IUnitOfWork unitOfWork, IClock clock)
+    public ProductService(
+        IProductRepository products,
+        IUnitOfWork unitOfWork,
+        IClock clock,
+        IMapper? mapper = null)
     {
         _products = products;
         _unitOfWork = unitOfWork;
         _clock = clock;
+        _mapper = mapper ?? new MapperConfiguration(cfg => cfg.AddProfile<ProductMappingProfile>()).CreateMapper();
     }
 
     public async Task<Result<PagedResponse<ProductResponse>>> ListAsync(ProductQuery query, CancellationToken cancellationToken = default)
     {
         var page = ToPageRequest(query);
         var result = await _products.ListAsync(new ProductFilter(query.Q?.Trim(), query.OnlyActive), page, cancellationToken);
-        var items = result.Items.Select(ToResponse).ToList();
+        var items = _mapper.Map<List<ProductResponse>>(result.Items);
 
         return Result.Success(new PagedResponse<ProductResponse>
         {
@@ -39,7 +47,7 @@ public sealed class ProductService : IProductService
 
         return product is null
             ? Result.Failure<ProductResponse>(Error.EntityNotFound("Producto", id))
-            : Result.Success(ToResponse(product));
+            : Result.Success(_mapper.Map<ProductResponse>(product));
     }
 
     public async Task<Result<ProductResponse>> CreateAsync(ProductRequest request, CancellationToken cancellationToken = default)
@@ -50,17 +58,14 @@ public sealed class ProductService : IProductService
             return Result.Failure<ProductResponse>(DuplicateSku());
         }
 
-        var product = new Product
-        {
-            Sku = sku,
-            CreatedAt = _clock.UtcNow
-        };
+        var product = _mapper.Map<Product>(request);
+        product.Sku = sku;
+        product.CreatedAt = _clock.UtcNow;
 
-        Apply(request, product);
         await _products.AddAsync(product, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return Result.Success(ToResponse(product));
+        return Result.Success(_mapper.Map<ProductResponse>(product));
     }
 
     public async Task<Result<ProductResponse>> UpdateAsync(Guid id, ProductRequest request, CancellationToken cancellationToken = default)
@@ -77,12 +82,12 @@ public sealed class ProductService : IProductService
             return Result.Failure<ProductResponse>(DuplicateSku());
         }
 
-        Apply(request, product);
+        _mapper.Map(request, product);
         product.Sku = sku;
         product.UpdatedAt = _clock.UtcNow;
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return Result.Success(ToResponse(product));
+        return Result.Success(_mapper.Map<ProductResponse>(product));
     }
 
     public async Task<Result> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
@@ -109,28 +114,4 @@ public sealed class ProductService : IProductService
     private static string NormalizeSku(string sku) => sku.Trim().ToUpperInvariant();
 
     private static Error DuplicateSku() => Error.Conflict("Ya existe un producto con ese codigo.");
-
-    private static void Apply(ProductRequest request, Product product)
-    {
-        product.Name = request.Name.Trim();
-        product.Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim();
-        product.Category = request.Category.Trim();
-        product.Unit = request.Unit.Trim();
-        product.Price = request.Price;
-        product.Stock = request.Stock;
-        product.IsActive = request.IsActive;
-    }
-
-    private static ProductResponse ToResponse(Product product) => new(
-        product.Id,
-        product.Sku,
-        product.Name,
-        product.Description,
-        product.Category,
-        product.Unit,
-        product.Price,
-        product.Stock,
-        product.IsActive,
-        product.CreatedAt,
-        product.UpdatedAt);
 }

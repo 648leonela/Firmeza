@@ -1,6 +1,8 @@
+using AutoMapper;
 using Firmeza.Application.Abstractions;
 using Firmeza.Application.Common;
 using Firmeza.Application.Dtos.Customers;
+using Firmeza.Application.Mappings;
 using Firmeza.Domain.Entities;
 
 namespace Firmeza.Application.Services.Customers;
@@ -10,22 +12,29 @@ public sealed class CustomerService : ICustomerService
     private readonly ICustomerRepository _customers;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IClock _clock;
+    private readonly IMapper _mapper;
 
-    public CustomerService(ICustomerRepository customers, IUnitOfWork unitOfWork, IClock clock)
+    public CustomerService(
+        ICustomerRepository customers,
+        IUnitOfWork unitOfWork,
+        IClock clock,
+        IMapper? mapper = null)
     {
         _customers = customers;
         _unitOfWork = unitOfWork;
         _clock = clock;
+        _mapper = mapper ?? new MapperConfiguration(cfg => cfg.AddProfile<CustomerMappingProfile>()).CreateMapper();
     }
 
     public async Task<Result<PagedResponse<CustomerResponse>>> ListAsync(CustomerQuery query, CancellationToken cancellationToken = default)
     {
         var page = new PageRequest { Page = query.Page, PageSize = query.PageSize };
         var result = await _customers.ListAsync(new CustomerFilter(query.Q?.Trim(), query.OnlyActive), page, cancellationToken);
+        var items = _mapper.Map<List<CustomerResponse>>(result.Items);
 
         return Result.Success(new PagedResponse<CustomerResponse>
         {
-            Items = result.Items.Select(ToResponse).ToList(),
+            Items = items,
             Page = page.Page,
             PageSize = page.Take,
             TotalCount = result.TotalCount
@@ -38,7 +47,7 @@ public sealed class CustomerService : ICustomerService
 
         return customer is null
             ? Result.Failure<CustomerResponse>(Error.EntityNotFound("Cliente", id))
-            : Result.Success(ToResponse(customer));
+            : Result.Success(_mapper.Map<CustomerResponse>(customer));
     }
 
     public async Task<Result<CustomerResponse>> CreateAsync(CustomerRequest request, CancellationToken cancellationToken = default)
@@ -56,18 +65,15 @@ public sealed class CustomerService : ICustomerService
             return Result.Failure<CustomerResponse>(Error.Conflict("Ya existe un cliente con ese correo."));
         }
 
-        var customer = new Customer
-        {
-            Document = document,
-            Email = email,
-            CreatedAt = _clock.UtcNow
-        };
+        var customer = _mapper.Map<Customer>(request);
+        customer.Document = document;
+        customer.Email = email;
+        customer.CreatedAt = _clock.UtcNow;
 
-        Apply(request, customer);
         await _customers.AddAsync(customer, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return Result.Success(ToResponse(customer));
+        return Result.Success(_mapper.Map<CustomerResponse>(customer));
     }
 
     public async Task<Result<CustomerResponse>> UpdateAsync(Guid id, CustomerRequest request, CancellationToken cancellationToken = default)
@@ -91,13 +97,13 @@ public sealed class CustomerService : ICustomerService
             return Result.Failure<CustomerResponse>(Error.Conflict("Ya existe un cliente con ese correo."));
         }
 
-        Apply(request, customer);
+        _mapper.Map(request, customer);
         customer.Document = document;
         customer.Email = email;
         customer.UpdatedAt = _clock.UtcNow;
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return Result.Success(ToResponse(customer));
+        return Result.Success(_mapper.Map<CustomerResponse>(customer));
     }
 
     public async Task<Result> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
@@ -120,25 +126,4 @@ public sealed class CustomerService : ICustomerService
     }
 
     private static string NormalizeEmail(string email) => email.Trim().ToLowerInvariant();
-
-    private static void Apply(CustomerRequest request, Customer customer)
-    {
-        customer.FullName = request.FullName.Trim();
-        customer.Age = request.Age;
-        customer.Phone = request.Phone.Trim();
-        customer.Address = string.IsNullOrWhiteSpace(request.Address) ? null : request.Address.Trim();
-        customer.IsActive = request.IsActive;
-    }
-
-    private static CustomerResponse ToResponse(Customer customer) => new(
-        customer.Id,
-        customer.Document,
-        customer.FullName,
-        customer.Age,
-        customer.Email,
-        customer.Phone,
-        customer.Address,
-        customer.IsActive,
-        customer.CreatedAt,
-        customer.UpdatedAt);
 }
